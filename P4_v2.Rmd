@@ -1,0 +1,833 @@
+PROSPER DATA EXPLORATION by JUNAID
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+setwd('D:/Junaid/nano/P4/')
+pld <- read.csv('prosperLoanData.csv')
+```
+
+I chose Prosper data set for exploration since I was eager to learn more about
+the loans and their relationship with the borrowers, especially factors that
+indicate successful repayment of borrowed amount in future. I also wanted to
+gain experience by working with datasets from banking industry.
+
+The dataset is huge and contains a lot of variables. It is not possible to
+analyse all the variables in this project. Variables visible in a listing
+profile are preferred and variables related to them are selected. Totally there
+are 16 variables in the subsetted dataframe. An example of a listing can be
+found in this link 
+https://www.prosper.com/help/topics/how-to-read-a-loan-listing/.
+
+Lets have a look at the dataframe.
+
+```{r echo=FALSE, Subset_data}
+selected_variables <- c('Term','LoanStatus','BorrowerAPR',
+                        'ProsperRating..numeric.','ProsperRating..Alpha.',
+                        'ListingCategory..numeric.', 'Occupation',
+                        'IsBorrowerHomeowner', 'CreditScoreRangeLower',
+                        'CreditScoreRangeUpper', 'DelinquenciesLast7Years',
+                        'BankcardUtilization', 'DebtToIncomeRatio',
+                        'StatedMonthlyIncome', 'LoanOriginalAmount')
+
+pl <- pld[selected_variables] 
+
+pl$Term <- factor(pl$Term, levels=c(12,36,60), ordered=TRUE)
+
+
+# Replacing NAs with zero values to match with the variable documentation
+# provided
+pl$ProsperRating..numeric.[is.na(pl$ProsperRating..numeric.)] <- 0
+
+pl$ProsperRating..numeric. <- factor(pl$ProsperRating..numeric., levels =
+                                       c(0,1,2,3,4,5,6,7), ordered=TRUE)
+
+pl$ProsperRating..Alpha. <- factor(pl$ProsperRating..Alpha., levels = 
+                                   c('HR', 'E','D', 'C', 'B','A','AA'),
+                                   ordered=TRUE)
+
+# Converting Listing Category from numeric to matching categories
+# using documentation
+pl$ListingCategory <- factor(pl$ListingCategory..numeric., 
+                             labels=c('Not Available', 'Debt Consolidation',
+                                      'Home Improvement', 'Business',
+                                      'Personal Loan', 'Student Use', 'Auto',
+                                      'Other', 'Baby&Adoption', 'Boat',
+                                      'Cosmetic Procedure', 'Engagement Ring',
+                                      'Green Loans', 'Household Expenses',
+                                      'Large Purchases', 'Medical/Dental',
+                                      'Motorcycle', 'RV', 'Taxes', 'Vacation',
+                                      'Wedding Loans'))
+names(pl)
+str(pl)
+summary(pl)
+```
+
+We see that the dataframe contains 113937 rows. The variable for ListingCategory
+(numeric) is a factor. Its levels are renamed and stored in another variable
+called ListingCategory. Thus, the variables are increased from the selected 15 
+to 16.
+
+# Univariate Plots Section
+
+## Data Overview
+
+### Loan Term
+
+```{r echo=FALSE, Univariate_Plots1}
+ggplot(aes(Term), data=pl) +geom_bar() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+There are a lot of loans with a loan term of 36 months (3 years). 60 months and
+12 months loans are less in number. This means that either the borrowers or the
+investors prefer a 3 year period compared to the other two options. Since we
+don't have the applicant data, we cannot conclude who likely prefers 36 months.
+
+### Loan Status
+
+```{r echo=FALSE, Univariate_Plots2}
+# Grouping levels of different past due into one level. 
+levels(pl$LoanStatus) <- list(Cancelled='Cancelled', Chargedoff='Chargedoff',
+                              Completed='Completed', Current='Current',
+                              Defaulted='Defaulted', 
+                              FinalPaymentInProgress='FinalPaymentInProgress',
+                              Past_Due = c('Past Due (>120 days)',
+                                           'Past Due (1-15 days)',
+                                           'Past Due (16-30 days)',
+                                           'Past Due (31-60 days)',
+                                           'Past Due (61-90 days)',
+                                           'Past Due (91-120 days)'))
+
+ggplot(aes(LoanStatus), data=subset(pl, !is.na(LoanStatus))) + geom_bar() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(angle=45,size=12, hjust = 1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+In this bar chart, it is clear that most loan data is for current loans followed
+by successfully completed loans and then chargedoff loans. Past due levels
+consist the days delayed information.  They are grouped into one varible called
+Past_due.
+
+### Loan Amount
+
+```{r echo=FALSE, Univariate_Plots3}
+ggplot(aes(LoanOriginalAmount), data=pl) +
+  geom_histogram(binwidth=1000, aes(color=I('black'))) +
+  scale_x_continuous(breaks=seq(0,35000, 2000)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(angle=45,size=12, hjust = 1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+The histogram tells that the most common amount is 4000 followed by 10000 and
+15000.
+
+### Loan purpose
+
+```{r echo=FALSE, Univariate_Plots4}
+ggplot(aes(ListingCategory), data=pl) + geom_bar() + coord_flip()
+
+table(pl$ListingCategory)
+```
+
+It is seen that many people use Prosper loans for Debt consolidation than any
+other purpose. From the table of Loan category, the number of debt considation
+loans is found to be 58308. Now, lets look at the percentage at which loan
+amount is borrowed.
+
+
+### Borrower Annual Percentage Rate
+
+```{r echo=FALSE, Univariate_Plots5}
+
+ggplot(aes(BorrowerAPR), data=pl) + 
+  geom_histogram(binwidth=0.005, aes(color=I('black'))) +
+  scale_x_continuous(breaks=seq(0,0.5,0.05)) + 
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+We see that the borrower Annual Percentage Rate follows a normal distribution
+with an outlier at BorrowerAPR 0.36. This pattern is similiar for BorrowerRate
+as well since it is derived from BorrowerAPR.
+
+### Borrower Income
+
+```{r echo=FALSE, Univariate_Plots6}
+ggplot(aes(StatedMonthlyIncome, color=I('black')), data=pl) +
+  geom_histogram(binwidth=250) + 
+  xlim(0,quantile(pl$StatedMonthlyIncome, 0.99)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+
+summary(pl$StatedMonthlyIncome)
+```
+
+The income of the borrower is plotted after removing the top 1% values. We can
+see that the distribution is skewed to the right with mode around $4500.
+Therefore, we can say that most of the borrowers earn in that range.
+
+```{r echo=FALSE, Univariate_Plots7}
+ggplot(aes(DebtToIncomeRatio, color=I('black')), data=pl) +
+  geom_histogram(binwidth=0.05) +
+  xlim(0,quantile(pl$DebtToIncomeRatio,0.99, na.rm=TRUE)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+Again removing the top 1% values from debt to income ratio, we see that the
+distribution is slightly skewed to the right. We remove the top 1% values, to
+filter the outliers. From the definition, we know that the maximum value for
+Debt to income ratio is 10.01. Thus from the plot, we can infer that 99% of the
+borrowers in the dataset have ratio less than 1, which means that their debts
+value does not exceed their income.
+
+### Bankcard utilization
+
+```{r echo=FALSE, Univariate_Plots8}
+ggplot(aes(BankcardUtilization, color=I('black')), data=pl) +
+  geom_freqpoly(binwidth=0.05) +
+  scale_x_continuous(breaks=seq(0,4, 0.2)) + 
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(angle=45,size=10, hjust = 1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+It is a distribution with two peaks, one at zero and the other at one. It means
+that some people do not have a bankcard or do not use them, while some people
+use them completely to their limit. There are also certain people, who have
+exceeded their limit on the card.
+
+Number of rows with BankcardUtilization less than 0.05
+```{r echo=FALSE}
+nrow(pl[which(pl$BankcardUtilization<0.05),])
+```
+
+Number of rows with BankcardUtilization less than 0.05
+```{r echo=FALSE}
+nrow(pl[which(pl$BankcardUtilization>=0.95 & pl$BankcardUtilization <=1),])
+```
+
+### Occupation of the borrower
+
+```{r echo=FALSE, Univariate_Plots9}
+ggplot(aes(Occupation), data=pl) +
+  geom_bar() +
+  coord_flip() + 
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=8))
+  
+```
+
+There are variety of occupations present in the dataset. This is also evident
+from the fact that 'other' category has the the highest count. Nothing much can
+be concluded from this information.
+
+### Delinquecies in last 7 years
+
+```{r echo=FALSE, Univariate_Plots10}
+ggplot(aes(DelinquenciesLast7Years), data=pl) +
+  geom_histogram(binwidth=1) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+  
+```
+
+Number of borrowers with zero delinquencies
+```{r echo=FALSE}
+nrow(pl[which(pl$DelinquenciesLast7Years==0), ])
+```
+
+It is seen that most borrowers have no delinquencies in the past 7 years. To be
+exact, 76439 borrowers did not have any delinquencies.
+
+### Prosper rating of the borrowers
+
+```{r echo=FALSE, Univariate_Plots11}
+ggplot(aes(ProsperRating..Alpha.),
+       data=subset(pl, !is.na(ProsperRating..Alpha.))) + 
+  geom_bar() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+From the ratings available in the dataset, we see that there are a lot borrowers
+with C rating. AA rated borrowers are the least of all categories.
+
+### Credit Score
+
+```{r echo=FALSE, Univariate_Plots12}
+ggplot(aes(CreditScoreRangeUpper), data=pl) +
+  geom_histogram(binwidth=1) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+
+summary(pl$CreditScoreRangeUpper)
+```
+
+We can see that there are discrete bars in the histogram since credit scores are
+integer values. It is a normal distribution with median score of 699. Upper
+range of credit scores was used for this plot. The lower range must also exhibit
+similiar behaviour.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+There are 113937 unique loan data in the dataframe with 30 variables. Out of
+these, ProsperRating..numeric., ProsperRating..Alpha. are ordered factors with
+levels described below.   
+
+(worst) ------> (best)
+
+1.  **ProsperRating..numeric.:** 0,1,2,3,4,5,6,7  
+2.  **ProsperRating..Alpha.:** HR, E, D, C, B, A, AA  
+ 
+
+There are many factor variables without any order such as LoanStatus,
+Occupation, IsBorrowerHomeowner, ListingCategory. the levels of these variables
+are listed below.  
+
+1.  **LoanStatus:** Cancelled, Chargedoff, Completed, Current, Defaulted,      
+FinalPaymentInProgress, Past Due (>120 days), Past Due (1-15 days), Past Due
+(16-30 days), Past Due (31-60 days), Past Due (61-90 days), Past Due (91-120
+days)  
+2.  **Occupation:** 68 levels like Accountant/CPA, Administrative Assistant,
+Analyst.  
+3.  **IsBorowerHomeowner:** TRUE, FALSE
+4.  **ListingCategory:** 21 levels like Not Available, Debt Consolidation, Home
+Improvement.
+
+Interesting Observations:  
+Most preferred term is 36 months  
+75% of the Credit Scores are under 739  
+75% of the loan amounts are under $12000  
+Very small number of Borrowers have delinquencies in the past 7 years  
+10.5% of all loans have been chargedoff  
+
+### What is/are the main feature(s) of interest in your dataset?
+
+I would like to estimate the relationship between the borrower information and
+their likelihood to default. To find this the LoanStatus and the various ratings
+might play a major role in the analysis. This analysis will then be useful for
+investors to avoid risky borrowers
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+
+Other variables such as debt to income ratio, Bank card utilization ratio,
+delinquencies in the past years must also affect the outcome.
+
+### Did you create any new variables from existing variables in the dataset?
+
+The ListingCategory (numeric) was a factor with integer levels. I converted them
+to appropriate cateogies such as 'Home loan' and assigned it to a new factor
+ListingCategory.  
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+In the  Loan status histogram , there were a lot of 'past due' levels for
+various distributions. It made the plot difficult to understand. Hence the past
+due levels were grouped together to form a single level. It then gave a clear
+picture of the loan status.
+
+
+# Bivariate Plots Section
+
+Let us examine the relationship between loan status and monthly income
+
+```{r echo=FALSE, Bivariate_Plots1}
+ggplot(aes(LoanStatus, StatedMonthlyIncome), data=pl) +
+  geom_boxplot() + 
+  coord_cartesian(ylim=c(0,10000)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12, angle=45, hjust = 1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+It is interesting to note that the the Loan status of 'Cancelled', 'Chargedoff'
+or 'Defaulted' have low median values of monthly income compared to other
+categories of loan statuses. It is one of the factors that might be affecting
+borrowers  unable to payback their loan.
+
+The statistics of the three categories: Chargedoff, Defaulted and Cancelled is
+listed below.
+
+```{r echo=FALSE, stat}
+with(subset(pl, LoanStatus=='Chargedoff'), summary(StatedMonthlyIncome))
+with(subset(pl, LoanStatus=='Defaulted'), summary(StatedMonthlyIncome))
+with(subset(pl, LoanStatus=='Cancelled'), summary(StatedMonthlyIncome))
+```
+
+Now that we know low income might be correlated with defaulting. Let us look if
+the annual percentage rate affects as well.
+
+```{r echo=FALSE, Bivariate_Plots2}
+ggplot(aes(LoanStatus, BorrowerAPR), data=pl) +
+  geom_point(alpha=1/20, position='jitter') +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+```{r echo=FALSE, Bivariate_Plots3}
+ggplot(aes(LoanStatus, BorrowerAPR), data=pl) +
+  geom_boxplot() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+The median rate for the loans seems to be less for completed loans than those
+not completed. Categories such as Chargedoff, cancelled, Pastdue and Defaulted
+have higher median APR than those completed. This implies that the rate could be
+a burden on the borrower. From the scatter plot it is also evident that bulk of
+the data for Chargedoff and Defaulted categories has APR between 0.3 and 0.4. It
+is represented by the darker lines in that region.
+
+
+```{r echo=FALSE, Bivariate_Plots4}
+ggplot(aes(LoanStatus), data= subset(pl, !is.na(ProsperRating..Alpha.))) +
+  geom_bar(aes(fill=ProsperRating..Alpha.)) + 
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+There is no clear conclusion from this graph. Borrowers of all Prosper ratings
+are present in all categories of loan statuses. After all, prosper ratings seem
+to be not so effective in categorising the risky borrowers from non risky ones.
+
+We expect credit score to be a good representative of identifying risky
+borrowers.
+
+```{r echo=FALSE, Bivariate_Plots5}
+ggplot(aes(LoanStatus, CreditScoreRangeUpper), data=pl) +
+  geom_boxplot() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+From this graph, it is seen that the credit scores of defaulters are lower than
+those who have completed the loans. It seems to be good predictor as well. We
+took upper limit of the credit score for this graph. Lets check whether this
+holds true for the lower limit as well.
+
+```{r echo=FALSE, Bivariate_Plots6}
+ggplot(aes(LoanStatus, CreditScoreRangeLower), data=pl) +
+  geom_boxplot() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+Indeed yes. Credit scores seem to be correlated with borrower defaulting.
+
+Now lelt us look if debts of the borrower relative to income affect the loan
+outcome.
+
+```{r echo=FALSE, Bivariate_Plots7}
+pl$DebtToIncomeRatio_bucket <- cut(pl$DebtToIncomeRatio, breaks = c(0, 0.2,0.4,
+                                                                    0.6, 0.8,1,
+                                                                    10.01))
+
+ggplot(aes(LoanStatus), data=subset(pl, !is.na(pl$DebtToIncomeRatio))) + 
+  geom_bar(aes(fill=DebtToIncomeRatio_bucket)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+There doesn't seem to be a relationship between the debt to income ratio and
+defaulting. Borrowers who have defaulted do not have huge debt ratios to make
+payments impossible. The ratio distribution in all groups seems random and there
+is no correlation. This is a dead end.
+
+```{r echo=FALSE, Bivariate_Plots8}
+ggplot(aes(LoanStatus, LoanOriginalAmount), data=pl) +
+  geom_boxplot() +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+Here as well, we see no noticable difference between the loan amounts and the
+status of the loan.
+
+```{r echo=FALSE, Bivariate_Plots9}
+ggplot(aes(LoanStatus), data=pl) + 
+  geom_bar(aes(fill=Term)) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust=1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+Most commom loan term is 36 months. It looks like all loans of 12 month peroid
+have been completed. However, there is no relationship of the other two terms
+with loan completion. Thus, loan term of 12 months looks less risky.
+
+
+```{r echo=FALSE, Bivariate_Plots10}
+# Taking a subset of only 3 loan statuses were are concerned about
+
+pl_loanstatus_subset <- subset(pl, LoanStatus=='Chargedoff' |
+                               LoanStatus=='Completed' |
+                               LoanStatus=='Defaulted')
+
+ggplot(aes(log10(BankcardUtilization+1)), data=pl_loanstatus_subset) + 
+  geom_histogram(aes(fill=LoanStatus), binwidth=0.05) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+The histogram displays bank card utilization ratio and the corresponding loan
+status. We can see that chargedoff loans are spread across all bank card
+utilization values. There doesn't seem to be a relationship between the two
+variables.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+In this Bivariate analysis, LoanStatus was tested for correlation with variables
+StatedMonthlyIncome, BorrowerAPR, ProsperRating, CreditScoreRangeUpper,
+CreditScoreRangeLower, DebtToIncomeRatio and LoanOriginalAmount. The LoanStatus,
+i.e. the likelihood of defaulting, or loan being Chargedoff was found to be
+correlated with the monthly income of the borrower. The median values of
+defaulters are less compared to those who have successfully completed their
+loan. Since LoanStatus is a categorical variable, the correlation coefficient
+with the monthly income cannot be measured.
+
+Loan status was also correlated with the Annual Percentage rate charged on the
+loan from the borrower. A boxplot was used to check for relationship and it was
+found that higher median APR (greater than 0.25) corresponded with default and
+Chargedoff loans. Completed loans had a median APR less than 0.2.
+
+Credit scores were also a good method to predict the risk involved with a
+borrower. However, the correlation was weak. There was only a slight difference
+in the credit scores for borrowers whose loans were chargedoff and for those who
+successfully cloased it.  
+
+In terms of loan period, it was seen that all 12 month loans were completed. 36
+months was the most common loan term. But there was no relationship of 36 and 60
+months term with completion. Hence borrowers with a small term loan were less
+risky to invest.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+Both upper and lower limit of credit scores gave similiar results. They
+perfectly correlated with each other.  
+
+Another surprise was that Prosper ratings given to the borrowers had no
+relationship whn compared with the resulting loan statuses (those completed and
+chargedoff). Thus the Prosper rating system does not seem to work as intended.
+
+### What was the strongest relationship you found?
+
+Even though the value could not be quantified, there was strong relationship
+between monthly income of borrowers and the final loan status. Hence income
+could be used to predict risk of a borrower along with factors such as credit
+scores.
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, Multivariate_Plots1}
+ggplot(aes(CreditScoreRangeUpper, DebtToIncomeRatio),
+       data=pl_loanstatus_subset) + 
+  geom_point(aes(color=LoanStatus)) + 
+  ylim(0,10.01) + xlim(375, 900) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+If we carefully observe the graph, we an see that there are a lot of chargedoff
+loans for high debt to income ratio and low Credit scores. The area of the graph
+above credit score of above 650 and debt income ratio less than 2.5 has a lot of
+completed loans than the rest of the graph.
+
+```{r echo=FALSE, Multivariate_Plots2}
+ggplot(aes(LoanStatus, BorrowerAPR), data=pl_loanstatus_subset) + 
+  geom_boxplot(aes(color=LoanStatus))  + 
+  facet_wrap(~ProsperRating..Alpha.) + 
+  theme(axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=10))
+```
+
+Lets look at the summaries of each facet from HR to AA 
+
+```{r echo=FALSE, Multivariate_Plots2_Summary}
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='HR')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='E')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='D')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='C')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='B')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='A')$BorrowerAPR)
+summary (subset(pl_loanstatus_subset, ProsperRating..Alpha.=='AA')$BorrowerAPR)
+```
+
+We see that the median values of Borrower rate vary according to the prosper
+rating of the borrower. Borrowers with good rating get lower percentages,
+whereas those with lower ratings get higher percentages. For any single rating,
+we can also see that the median rate for those completed is slightly lesser that
+those who didn't.
+
+```{r echo=FALSE, Multivariate_Plots3}
+ggplot(aes(y=CreditScoreRangeUpper/(DebtToIncomeRatio * 900), x=BorrowerAPR),
+       data=subset(pl_loanstatus_subset, DebtToIncomeRatio !=0)) + 
+  geom_point(aes(color=LoanStatus), alpha=0.5) + 
+  ylim(0,50) + 
+  scale_x_log10() + 
+  geom_smooth(method=lm) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+After taking ratio of creditScore to Debtincome ratio and dividing it by 900,
+the varible was plotted against borrower rate. The borrower rate was transformed
+to log scale. From this scatter plot, we can observe that bulk of chargedoff
+loans are present only after a rate of 0.10 and they increase as the borrower
+rate increases. These charged off loans also seem to be concentrated near the
+lower values of y axis, i.e for lower credit score and higher debt to income
+ratio.
+
+Now lets look at the effect of term.
+
+```{r echo=FALSE, Multivariate_Plots4}
+# Creating bins of borrower rate
+pl_loanstatus_subset$BorrowerAPR.bin <- cut(pl_loanstatus_subset$BorrowerAPR,
+                       breaks=c(0,0.1,0.2,0.4,0.6))
+
+ggplot(aes(LoanStatus), data=pl_loanstatus_subset) +
+  geom_bar(aes(fill=BorrowerAPR.bin)) + facet_wrap(~Term) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=10, angle=45, hjust = 1),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+Here, we can see that 12 month loans have very little chargeoff and their
+borrowing rate is above 10%. 36 months is the most common loan term, here almost
+all loans with rate less than 10% have been completed. It looks like 60 month
+term has high chance of a loan being chargedoff, since around 2/3 rd of the
+loans are not completed. The borrowing percentage is also really high. It may be
+prosper policy to charge higher rates for long loan periods.
+
+Lets check if homeownership affects final outcome.
+
+```{r  echo=FALSE, Multivariate_Plots5}
+ggplot(aes(y=CreditScoreRangeUpper/(DebtToIncomeRatio * 900), x=BorrowerAPR),
+       data=subset(pl_loanstatus_subset, DebtToIncomeRatio !=0)) + 
+  geom_point(aes(color=LoanStatus), alpha=0.5) + 
+  ylim(0,50) + 
+  scale_x_log10() + 
+  geom_smooth(method=lm)+ 
+  facet_wrap(~IsBorrowerHomeowner) +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+There is no big relationship found here. One small thing that can noticed is
+that there are more Chargedoff loans when the borrower is not a homeowner.
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+I found that high DebtToIncomeRatio and lower credit scores meant chargedoff
+loans. Only when both the variables were at the desired levels, the completion
+rate was high. The desired levels were high credit scores and low
+DebtToIncomeRatio.  Another major finding was that the completion of 12 month
+loans was very high and low borrower rate corresponded with high completion
+
+### Were there any interesting or surprising interactions between features?
+
+In the bar graph of LoanStatus faceted by loan Terms. I was surprised to see
+that 60 month term loans had very high incompletion (almost 2/3rd). This was not
+true for the other two terms of 12 month and 36 month.  
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+
+```{r echo=FALSE, Plot_One}
+ggplot(aes(LoanStatus, StatedMonthlyIncome), data=pl_loanstatus_subset) +
+  geom_boxplot(aes(fill=LoanStatus)) + 
+  coord_cartesian(ylim=c(0,10000)) + 
+  labs(x= 'Loan Status', y='Monthly Income ($)', title='Monthly Income by Loan
+       Status') +  
+  theme(axis.text.x=element_blank(),
+        axis.title.x = element_text(size=16),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12)) +
+  scale_fill_discrete(name='Loan Status')
+```
+
+### Description One
+
+This plot describes that completed loans have the lowest median monthly income
+compared with Chargedoff and Defaulted loans. It seems logical that people who
+have well paying jobs are better positioned to payback the loan amount than
+people who don't have a job. It should be noted that the graph is in terms of
+monthly income, the difference will be much more pronounced for annual income.
+
+### Plot Two
+
+```{r echo=FALSE, Plot_Two}
+ggplot(aes(y=CreditScoreRangeUpper/(DebtToIncomeRatio * 900), x=BorrowerAPR),
+       data=subset(pl_loanstatus_subset, DebtToIncomeRatio !=0)) +
+  geom_point(aes(color=LoanStatus), alpha=0.5) + 
+  ylim(0,50) + 
+  scale_x_log10() +
+  geom_smooth(method=lm) +
+  labs(x='Borrower Rate', y='Credit Score/Debt to income ratio',
+       title='Credit Score/Debit to income ratio by Borrower Rate by \
+       Loan Status') +
+  scale_color_discrete(name='Loan Status') +
+  theme(axis.title.x = element_text(size=16),
+        axis.text.x  = element_text(size=12),
+        axis.title.y = element_text(size=16),
+        axis.text.y  = element_text(size=12))
+```
+
+### Description Two
+
+This is a graph that describes the relationship of four variables with loan
+completion. Here the borrower rate is represented in a log scale. It is found
+that loans chargedoff and defaulted are concentrated above borrower rate of 10%
+and for a low value of the ratio between credit score and debt to income ratio.
+
+### Plot Three
+
+```{r echo=FALSE, Plot_Three}
+pl.grouped <- pl_loanstatus_subset %>%
+  group_by(LoanStatus) %>% 
+  summarise(BorrowerAPR_mean = mean(BorrowerAPR, na.rm=TRUE),
+            Monthly_income_mean = mean(StatedMonthlyIncome, na.rm=TRUE),
+            Credit_scores_mean = mean(CreditScoreRangeUpper, na.rm=TRUE),
+            n = n())
+
+p  <- ggplot(aes(x=LoanStatus),data=pl.grouped) + 
+  theme(axis.text.y = element_text(angle = 0 , size =8),
+        axis.title.y=element_text(angle = 0, size = 12),
+        plot.title=element_text(size=12),
+        axis.text.x = element_text(size=12),
+        axis.title.x = element_text(size=12))
+
+p1 <- p + geom_line(aes(y=BorrowerAPR_mean, group=1, color=I('green'))) +
+  labs(x= 'Loan Status', y='Borrower Rate',
+       title='Borrower Rate grouped by Loan Status')
+p2 <- p + geom_line(aes(y=Monthly_income_mean, group=1, color=I('blue'))) +
+  labs(x= 'Loan Status', y='Monthly Income($)',
+       title='Monthly Income grouped by Loan Status')
+p3 <- p + geom_line(aes(y=Credit_scores_mean, group=1, color=I('red'))) + 
+  labs(x= 'Loan Status', y='Credit Scores',
+       title='Credit Scores grouped by Loan Status')
+
+grid.arrange(p1,p2,p3,ncol=1)
+```
+
+### Description Three
+
+This graph summarises the findings from this exploratory data analysis. These
+three variables had the most impact on whether a loan was chargedoff or
+completed. In this graph, the mean values of each variable grouped by Loan
+status is plotted. For Borrower rate, low value is preferred. For Monthly income
+and credit score, higher values are preferred in the range of $5400 and 710
+respectively.
+
+------
+
+# Reflection
+
+Start of the project was the most diffcult phase. It was challenging to
+understand the dataset and the variables. Since there are 81 variables in this
+dataset, I had to limit them, so that the selected variables could be analysed
+within the scope of this project. It was a tough task. I decided to select
+variables that were important to answer my question of predicting defaulting
+using borrower information. I alss used the listing example on Prosper website
+to narrow down variables. In the univariate analysis, I plotted various bars and
+histograms to understand the variables chosen. Then from those, I proceded to
+indentify relationship between variables in Bivariate analysis. Here my main
+focus was to find relationship between loan status and other selected variables.
+I found that Credit score, monthly income, borrower annual percentage rate and
+term had an effect on the final outcome of the loan. In multivariate analysis, I
+explored the relationship by combining varibles identified from previous
+section. This provided good answers about borrowers and their likelihood to
+default. 
+
+I hope my project will help investors in classify borrowers according to their
+risk and help them make informed decision. However, my project is by no way a
+complete analysis of the dataset. There is a lot of scope to improve this by
+analysing the variables not selected in this project. For.eg. The impact of
+variables such as LenderYield, EstimatedLoss, etc can have an impact on the
+final outcome. LenderYield and EstimatedLoss determine the amount returned to
+the investor and that may impact his decision to invest in a borrower. Moreover,
+groupmembership, recommendations of the borrower might also affect investment
+decision on top of the variables discussed in this project.
+
+I feel that developing a model to predict would be the next step for this
+project. This model would predict a score based on all the variables that are
+found to affect the loan outcome. Then a threshold value of the score developed
+could be set to determine investment decisions and avoid risky borrowers. It could be done by multiple linear regression.

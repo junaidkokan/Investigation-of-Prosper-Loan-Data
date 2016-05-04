@@ -1,0 +1,11 @@
+1. Listing Example
+https://www.prosper.com/help/topics/how-to-read-a-loan-listing/
+
+2. Formatting axis labels
+http://stackoverflow.com/questions/19567986/overlapping-axis-labels-in-r
+
+3. Subsetting
+http://www.statmethods.net/management/subset.html
+
+4. Axes formatting
+http://www.cookbook-r.com/Graphs/Axes_%28ggplot2%29/#axis-labels-and-text-formatting
